@@ -32,12 +32,36 @@ class MongoDB:
             logger.exception(ex)
         return []
 
-    # def add_book(self, book: Book):
-    #     try:
-    #         inserted_doc = self._books_col.insert_one(book.to_dict())
-    #         return inserted_doc
-    #     except Exception as ex:
-    #         logger.exception(ex)
-    #     return None
+    def add_book(self, book: Book):
+        try:
+            inserted_doc = self._books_col.insert_one(book.to_dict())
+            return inserted_doc
+        except Exception as ex:
+            logger.exception(ex)
+        return None
 
+    def get_book_by_id(self, book_id: str):
+        try:
+            doc = self._books_col.find_one({'book_id': book_id})
+            if doc:
+                return Book().from_dict(doc)
+        except Exception as ex:
+            logger.exception(ex)
+        return None
+
+    def update_book(self, book_id: str, updated_data: dict):
+        try:
+            result = self._books_col.update_one({'book_id': book_id}, {'$set': updated_data})
+            return result.modified_count > 0
+        except Exception as ex:
+            logger.exception(ex)
+        return False
+
+    def delete_book(self, book_id: str):
+        try:
+            result = self._books_col.delete_one({'book_id': book_id})
+            return result.deleted_count > 0
+        except Exception as ex:
+            logger.exception(ex)
+        return False
     # TODO: write functions CRUD with books

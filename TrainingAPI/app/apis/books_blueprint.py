@@ -62,13 +62,40 @@ async def create_book(request, username=None):
     book.owner = username
 
     # # TODO: Save book to database
-    # inserted = _db.add_book(book)
-    # if not inserted:
-    #     raise ApiInternalError('Fail to create book')
+    inserted = _db.add_book(book)
+    if not inserted:
+        raise ApiInternalError('Fail to create book')
 
     # TODO: Update cache
 
     return json({'status': 'success'})
 
+async def get_book(request, book_id):
+    book = _db.get_book(book_id)
+    if not book:
+        raise ApiInternalError('Book not found')
+    return json({'status': 'success', 'book': book.to_dict()})
+
+async def update_book(request, book_id):
+    body = request.json
+    book = _db.get_book(book_id)
+    if not book:
+        raise ApiInternalError('Book not found')
+
+    book.from_dict(body)
+    updated = _db.update_book(book)
+    if not updated:
+        raise ApiInternalError('Fail to update book')
+    return json({'status': 'success', 'book': book.to_dict()})
+
+async def delete_book(request, book_id):
+    book = _db.get_book(book_id)
+    if not book:
+        raise ApiInternalError('Book not found')
+
+    deleted = _db.delete_book(book_id)
+    if not deleted:
+        raise ApiInternalError('Fail to delete book')
+    return json({'status': 'success'})
 
 # TODO: write api get, update, delete book
