@@ -2,8 +2,8 @@ import time
 
 
 class Book:
-    def __init__(self, _id=''):
-        self._id = _id
+    def __init__(self, book_id=''):
+        self.book_id = book_id
         self.title = ''
         self.authors = []
         self.publisher = ''
@@ -14,7 +14,7 @@ class Book:
 
     def to_dict(self):
         return {
-            '_id': self._id,
+            'book_id': self.book_id,
             'title': self.title,
             'authors': self.authors,
             'publisher': self.publisher,
@@ -25,7 +25,7 @@ class Book:
         }
 
     def from_dict(self, json_dict: dict):
-        self._id = json_dict.get('_id', self._id)
+        self.book_id = json_dict.get('book_id', self.book_id)
         self.title = json_dict.get('title', '')
         self.authors = json_dict.get('authors', [])
         self.publisher = json_dict.get('publisher', '')
