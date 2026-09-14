@@ -2,6 +2,7 @@
 @username = alice
 @password = password123
 @token = paste-login-token-here
+@refreshToken = paste-refresh-token-here
 @bookId = paste-book-id-here
 
 ### 1. API home
@@ -31,22 +32,53 @@ POST {{baseUrl}}/refresh/
 Content-Type: application/json
 
 {
-  "refresh_token": "paste-refresh-token-here"
+  "refresh_token": "{{refreshToken}}"
 }
 
-### 5. Logout and revoke access + refresh tokens
+### 5. Refresh token replay must fail with 401
+POST {{baseUrl}}/refresh/
+Content-Type: application/json
+
+{
+  "refresh_token": "{{refreshToken}}"
+}
+
+### 6. Logout and revoke access + refresh tokens
 POST {{baseUrl}}/logout/
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "refresh_token": "paste-refresh-token-here"
+  "refresh_token": "{{refreshToken}}"
 }
 
-### 6. List books - public
+### 7. Revoked access token must fail with 401
+GET {{baseUrl}}/books/
+Authorization: Bearer {{token}}
+
+### 8. Invalid login must return 401
+POST {{baseUrl}}/login/
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "wrong-password"
+}
+
+### 9. List books - public
 GET {{baseUrl}}/books/
 
-### 7. Create book - JWT required
+### 10. Create book without JWT must return 401
+POST {{baseUrl}}/books/create/
+Content-Type: application/json
+
+{
+  "title": "Unauthorized Book",
+  "authors": ["Author"],
+  "publisher": "Publisher"
+}
+
+### 11. Create book - JWT required
 POST {{baseUrl}}/books/create/
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -58,10 +90,10 @@ Content-Type: application/json
   "description": "A practical guide to writing readable code."
 }
 
-### 8. Get book by id - public
+### 12. Get book by id - public
 GET {{baseUrl}}/books/{{bookId}}/
 
-### 9. Update owned book - JWT required
+### 13. Update owned book - JWT required
 PUT {{baseUrl}}/books/{{bookId}}/
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -73,15 +105,15 @@ Content-Type: application/json
   "description": "Updated book description."
 }
 
-### 10. Delete owned book - JWT required
+### 14. Delete owned book - JWT required
 DELETE {{baseUrl}}/books/{{bookId}}/
 Authorization: Bearer {{token}}
 
-### 11. List users - admin JWT required
+### 15. List users - admin JWT required
 GET {{baseUrl}}/admin/users/
 Authorization: Bearer {{token}}
 
-### 12. Create user - admin JWT required
+### 16. Create user - admin JWT required
 POST {{baseUrl}}/admin/users/create/
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -92,7 +124,7 @@ Content-Type: application/json
   "role": "user"
 }
 
-### 13. Update user - admin JWT required
+### 17. Update user - admin JWT required
 PUT {{baseUrl}}/admin/users/bob/
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -101,6 +133,22 @@ Content-Type: application/json
   "role": "admin"
 }
 
-### 14. Delete user - admin JWT required
+### 18. Delete user - admin JWT required
 DELETE {{baseUrl}}/admin/users/bob/
 Authorization: Bearer {{token}}
+
+### 19. Non-admin user must get 403 on admin API
+# Login as alice first and replace @token with alice access_token.
+GET {{baseUrl}}/admin/users/
+Authorization: Bearer {{token}}
+
+### 20. Invalid book payload must return 400
+POST {{baseUrl}}/books/create/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "",
+  "authors": [],
+  "publisher": ""
+}

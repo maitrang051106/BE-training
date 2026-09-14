@@ -21,6 +21,19 @@ class LibraryApiTests(TestCase):
             'owner': 'alice',
         }
 
+    def access_token(self, username='alice', role='user', jti='test-token'):
+        return jwt.encode(
+            {
+                'username': username,
+                'role': role,
+                'typ': 'access',
+                'jti': jti,
+            },
+            settings.SECRET_KEY,
+            algorithm='HS256',
+            headers={'kid': settings.JWT_ACTIVE_KID},
+        )
+
     def test_api_home_and_public_book_list(self):
         self.assertEqual(self.client.get('/').status_code, 200)
         with patch('library_api.apis.books_api.BookService') as service_class:
@@ -102,6 +115,72 @@ class LibraryApiTests(TestCase):
     def test_missing_jwt_is_rejected(self):
         response = self.client.post('/books/create/', data='{}', content_type='application/json')
         self.assertEqual(response.status_code, 401)
+
+    @patch('library_api.apis.auth_api.MongoDB')
+    def test_invalid_login_is_rejected(self, database_class):
+        database_class.return_value.get_user.return_value = None
+        response = self.client.post(
+            '/login/',
+            data=json.dumps({'username': 'alice', 'password': 'wrongpass'}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 401)
+
+    @patch('library_api.decorators.auth.MongoDB')
+    @patch('library_api.apis.books_api.BookService')
+    def test_invalid_book_payload_returns_400(self, service_class, database_class):
+        database_class.return_value.is_token_revoked.return_value = False
+        response = self.client.post(
+            '/books/create/',
+            data=json.dumps({'title': '', 'authors': [], 'publisher': ''}),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=f'Bearer {self.access_token()}',
+        )
+        self.assertEqual(response.status_code, 400)
+        service_class.return_value.create_book.assert_not_called()
+
+    @patch('library_api.decorators.auth.MongoDB')
+    @patch('library_api.apis.books_api.BookService')
+    def test_non_owner_cannot_update_book(self, service_class, database_class):
+        database_class.return_value.is_token_revoked.return_value = False
+        service_class.return_value.get_book.return_value = {**self.book, 'owner': 'bob'}
+        response = self.client.put(
+            '/books/1/',
+            data=json.dumps({
+                'title': 'Changed',
+                'authors': ['Author'],
+                'publisher': 'Publisher',
+            }),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=f'Bearer {self.access_token(username="alice", jti="not-owner")}',
+        )
+        self.assertEqual(response.status_code, 403)
+        service_class.return_value.update_book.assert_not_called()
+
+    @patch('library_api.decorators.auth.MongoDB')
+    @patch('library_api.apis.auth_api.MongoDB')
+    def test_non_admin_cannot_list_users(self, auth_database, decorator_database):
+        decorator_database.return_value.is_token_revoked.return_value = False
+        response = self.client.get(
+            '/admin/users/',
+            HTTP_AUTHORIZATION=f'Bearer {self.access_token()}',
+        )
+        self.assertEqual(response.status_code, 403)
+        auth_database.return_value.list_users.assert_not_called()
+
+    @patch('library_api.decorators.auth.MongoDB')
+    @patch('library_api.apis.auth_api.MongoDB')
+    def test_admin_can_list_users(self, auth_database, decorator_database):
+        decorator_database.return_value.is_token_revoked.return_value = False
+        auth_database.return_value.list_users.return_value = [
+            {'username': 'alice', 'role': 'user'},
+        ]
+        response = self.client.get(
+            '/admin/users/',
+            HTTP_AUTHORIZATION=f'Bearer {self.access_token(username="admin", role="admin", jti="admin-list")}',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['users'][0]['username'], 'alice')
 
     def test_book_service_uses_cache_and_invalidates_after_create(self):
         book_data = self.book
