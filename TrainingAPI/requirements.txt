@@ -3,7 +3,6 @@ Sanic-Cors==2.2.0
 sanic-ext==24.12.0
 sanic-routing==23.12.0
 sanic-testing==24.6.0
-sanic-redis==0.3.0
 termcolor==1.1.0
 python-dotenv==0.19.2
 jsonschema==3.2.0
@@ -11,3 +10,4 @@ pymongo==4.16.0
 redis==7.1.0
 click==8.0.3
 PyJWT==2.3.0
+bcrypt==4.2.1

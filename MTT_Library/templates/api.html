@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Library API</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1100px; margin: 32px auto; padding: 0 20px; color: #1f2937; }
+        h1 { margin-bottom: 8px; }
+        h2 { margin-top: 32px; border-bottom: 1px solid #d1d5db; padding-bottom: 8px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; vertical-align: top; }
+        th { background: #f3f4f6; }
+        code { background: #f3f4f6; padding: 2px 5px; }
+        .admin { background: #fff7ed; }
+        .note { background: #eff6ff; border-left: 4px solid #2563eb; padding: 12px; }
+    </style>
+</head>
+<body>
+    <h1>Library API</h1>
+    <p>Django + MongoDB + Redis cache + PyJWT.</p>
+
+    <div class="note">
+        Các endpoint cần xác thực sử dụng header
+        <code>Authorization: Bearer &lt;access_token&gt;</code>.
+        Đăng nhập bằng tài khoản <code>admin</code> để thao tác quản trị.
+    </div>
+
+    <h2>Authentication</h2>
+    <table>
+        <thead>
+            <tr><th>Method</th><th>URL</th><th>Quyền</th><th>Thao tác</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>POST</td><td><code>/register/</code></td><td>Public</td><td>Đăng ký tài khoản user.</td></tr>
+            <tr><td>POST</td><td><code>/login/</code></td><td>Public</td><td>Đăng nhập, nhận access token và refresh token.</td></tr>
+            <tr><td>POST</td><td><code>/refresh/</code></td><td>Public</td><td>Đổi refresh token cũ lấy cặp token mới.</td></tr>
+            <tr><td>POST</td><td><code>/logout/</code></td><td>JWT</td><td>Thu hồi access token và refresh token.</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Books CRUD</h2>
+    <table>
+        <thead>
+            <tr><th>Method</th><th>URL</th><th>Quyền</th><th>Thao tác</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>GET</td><td><code>/books/</code></td><td>Public</td><td>Xem danh sách books, có cache.</td></tr>
+            <tr><td>POST</td><td><code>/books/create/</code></td><td>JWT</td><td>Tạo book mới, owner lấy từ token.</td></tr>
+            <tr><td>GET</td><td><code>/books/&lt;id&gt;/</code></td><td>Public</td><td>Xem chi tiết book.</td></tr>
+            <tr><td>PUT</td><td><code>/books/&lt;id&gt;/</code></td><td>Owner/Admin</td><td>Cập nhật book.</td></tr>
+            <tr><td>DELETE</td><td><code>/books/&lt;id&gt;/</code></td><td>Owner/Admin</td><td>Xóa book.</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Admin Operations</h2>
+    <table class="admin">
+        <thead>
+            <tr><th>Method</th><th>URL</th><th>Thao tác</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>GET</td><td><code>/admin/users/</code></td><td>Xem danh sách users, không hiển thị password hash.</td></tr>
+            <tr><td>POST</td><td><code>/admin/users/create/</code></td><td>Tạo user với role <code>user</code> hoặc <code>admin</code>.</td></tr>
+            <tr><td>PUT</td><td><code>/admin/users/&lt;username&gt;/</code></td><td>Cập nhật role hoặc password.</td></tr>
+            <tr><td>DELETE</td><td><code>/admin/users/&lt;username&gt;/</code></td><td>Xóa user khác, admin không thể tự xóa mình.</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Admin Flow</h2>
+    <ol>
+        <li>Gọi <code>POST /login/</code> với tài khoản admin.</li>
+        <li>Lấy giá trị <code>access_token</code> trong response.</li>
+        <li>Gửi token qua header <code>Authorization: Bearer &lt;access_token&gt;</code>.</li>
+        <li>Gọi các endpoint trong nhóm <code>/admin/users/</code>.</li>
+    </ol>
+</body>
+</html>

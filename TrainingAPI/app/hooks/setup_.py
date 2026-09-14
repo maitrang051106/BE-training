@@ -10,3 +10,9 @@ async def setup_cache(sanic_app: Sanic):
     sanic_app.ctx.cache = cache
 
     log('Setup cache connections')
+
+
+async def disconnect_cache(sanic_app: Sanic):
+    cache = getattr(sanic_app.ctx, 'cache', None)
+    if cache:
+        await cache.disconnect()

@@ -1,0 +1,106 @@
+@baseUrl = http://127.0.0.1:8001
+@username = alice
+@password = password123
+@token = paste-login-token-here
+@bookId = paste-book-id-here
+
+### 1. API home
+GET {{baseUrl}}/
+
+### 2. Register user
+POST {{baseUrl}}/register/
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}"
+}
+
+### 3. Login and get JWT
+# Copy token from the response and replace @token above.
+POST {{baseUrl}}/login/
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}"
+}
+
+### 4. Refresh token (old refresh token is revoked)
+POST {{baseUrl}}/refresh/
+Content-Type: application/json
+
+{
+  "refresh_token": "paste-refresh-token-here"
+}
+
+### 5. Logout and revoke access + refresh tokens
+POST {{baseUrl}}/logout/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "refresh_token": "paste-refresh-token-here"
+}
+
+### 6. List books - public
+GET {{baseUrl}}/books/
+
+### 7. Create book - JWT required
+POST {{baseUrl}}/books/create/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Clean Code",
+  "authors": ["Robert C. Martin"],
+  "publisher": "Prentice Hall",
+  "description": "A practical guide to writing readable code."
+}
+
+### 8. Get book by id - public
+GET {{baseUrl}}/books/{{bookId}}/
+
+### 9. Update owned book - JWT required
+PUT {{baseUrl}}/books/{{bookId}}/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Clean Architecture",
+  "authors": ["Robert C. Martin"],
+  "publisher": "Pearson",
+  "description": "Updated book description."
+}
+
+### 10. Delete owned book - JWT required
+DELETE {{baseUrl}}/books/{{bookId}}/
+Authorization: Bearer {{token}}
+
+### 11. List users - admin JWT required
+GET {{baseUrl}}/admin/users/
+Authorization: Bearer {{token}}
+
+### 12. Create user - admin JWT required
+POST {{baseUrl}}/admin/users/create/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "username": "bob",
+  "password": "password123",
+  "role": "user"
+}
+
+### 13. Update user - admin JWT required
+PUT {{baseUrl}}/admin/users/bob/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "role": "admin"
+}
+
+### 14. Delete user - admin JWT required
+DELETE {{baseUrl}}/admin/users/bob/
+Authorization: Bearer {{token}}

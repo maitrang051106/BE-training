@@ -12,7 +12,7 @@ def generate_jwt(username, role='user'):
             "username": username,
             "role": role,
             "exp": expiration_time
-        }, 
+        },
         Config.SECRET_KEY
     )
 

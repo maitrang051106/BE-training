@@ -27,6 +27,7 @@ def protected(wrapped):
 
             if is_authenticated:
                 kwargs['username'] = jwt_['username']
+                kwargs['role'] = jwt_.get('role', 'user')
                 response = await f(request, *args, **kwargs)
                 return response
             else:

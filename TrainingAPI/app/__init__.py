@@ -1,7 +1,7 @@
 from sanic import Sanic
 from sanic_cors import CORS
 
-from app.hooks.setup_ import setup_cache
+from app.hooks.setup_ import disconnect_cache, setup_cache
 from app.misc.log import log
 from config import Config
 
@@ -24,6 +24,7 @@ def register_hooks(sanic_app: Sanic):
 
     sanic_app.register_middleware(after_request, 'response')
     sanic_app.register_listener(setup_cache, event="before_server_start")
+    sanic_app.register_listener(disconnect_cache, event="after_server_stop")
 
 
 

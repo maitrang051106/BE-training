@@ -15,6 +15,8 @@ def validate_with_jsonschema(jsonschema: dict):
                     request: Request = arg
 
                     try:
+                        if not isinstance(request.json, dict) or not request.json:
+                            raise ApiBadRequest('Request body must be a non-empty JSON object')
                         validate(request.json, jsonschema)
                     except ValidationError as ex:
                         raise ApiBadRequest(ex.message)

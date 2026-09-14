@@ -2,8 +2,8 @@ import time
 
 
 class Book:
-    def __init__(self, book_id=''):
-        self.book_id = book_id
+    def __init__(self, id=''):
+        self.id = id
         self.title = ''
         self.authors = []
         self.publisher = ''
@@ -14,7 +14,7 @@ class Book:
 
     def to_dict(self):
         return {
-            'book_id': self.book_id,
+            'id': self.id,
             'title': self.title,
             'authors': self.authors,
             'publisher': self.publisher,
@@ -25,7 +25,7 @@ class Book:
         }
 
     def from_dict(self, json_dict: dict):
-        self.book_id = json_dict.get('book_id', self.book_id)
+        self.id = json_dict.get('id', self.id)
         self.title = json_dict.get('title', '')
         self.authors = json_dict.get('authors', [])
         self.publisher = json_dict.get('publisher', '')
@@ -38,11 +38,16 @@ class Book:
 
 create_book_json_schema = {
     'type': 'object',
+    'additionalProperties': False,
     'properties': {
-        'title': {'type': 'string'},
-        'authors': {'type': 'array', 'items': {'type': 'string'}},
-        'publisher': {'type': 'string'},
-        'description': {'type': 'string'},
+        'title': {'type': 'string', 'minLength': 1, 'maxLength': 255},
+        'authors': {
+            'type': 'array',
+            'minItems': 1,
+            'items': {'type': 'string', 'minLength': 1, 'maxLength': 255}
+        },
+        'publisher': {'type': 'string', 'minLength': 1, 'maxLength': 255},
+        'description': {'type': 'string', 'maxLength': 2000},
     },
     'required': ['title', 'authors', 'publisher']
 }
