@@ -18,12 +18,22 @@ auth_bp = Blueprint('auth_blueprint', url_prefix='/auth')
 
 _db = MongoDB()
 
+USERNAME_SCHEMA = {'type': 'string', 'minLength': 1, 'maxLength': 64, 'pattern': r'\S'}
+PASSWORD_SCHEMA = {'type': 'string', 'minLength': 1, 'maxLength': 72}
+ROLE_SCHEMA = {'type': 'string', 'enum': ['admin', 'user']}
+
+USER_BODY_PROPERTIES = {
+	'username': USERNAME_SCHEMA,
+	'password': PASSWORD_SCHEMA,
+	'role': ROLE_SCHEMA,
+}
+
 credentials_json_schema = {
 	'type': 'object',
 	'additionalProperties': False,
 	'properties': {
-		'username': {'type': 'string', 'minLength': 1, 'maxLength': 64},
-		'password': {'type': 'string', 'minLength': 8, 'maxLength': 72},
+		'username': USERNAME_SCHEMA,
+		'password': PASSWORD_SCHEMA,
 	},
 	'required': ['username', 'password']
 }
@@ -31,11 +41,7 @@ credentials_json_schema = {
 admin_user_json_schema = {
 	'type': 'object',
 	'additionalProperties': False,
-	'properties': {
-		'username': {'type': 'string', 'minLength': 1, 'maxLength': 64},
-		'password': {'type': 'string', 'minLength': 8, 'maxLength': 72},
-		'role': {'type': 'string', 'enum': ['admin', 'user']},
-	},
+	'properties': USER_BODY_PROPERTIES,
 	'required': ['username', 'password']
 }
 
@@ -56,11 +62,28 @@ update_user_json_schema = {
 	'type': 'object',
 	'additionalProperties': False,
 	'properties': {
-		'password': {'type': 'string', 'minLength': 8, 'maxLength': 72},
-		'role': {'type': 'string', 'enum': ['admin', 'user']},
+		'password': USER_BODY_PROPERTIES['password'],
+		'role': USER_BODY_PROPERTIES['role'],
 	},
-	'anyOf': [{'required': ['password']}, {'required': ['role']}],
+	'minProperties': 1,
 }
+
+
+def _hash_password(password: str) -> str:
+	return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+
+def _parse_user_role(body: dict) -> str:
+	return body.get('role', 'user')
+
+
+def _build_user_update(body: dict) -> dict:
+	updated_data = {}
+	if 'role' in body:
+		updated_data['role'] = body['role']
+	if 'password' in body:
+		updated_data['password_hash'] = _hash_password(body['password'])
+	return updated_data
 
 
 @auth_bp.post('/register')
@@ -73,13 +96,10 @@ async def register(request):
 	username = request.json['username'].strip()
 	password = request.json['password']
 
-	if not username:
-		raise ApiBadRequest('Username must not be empty')
-
 	if _db.get_user(username):
 		raise ApiBadRequest('Username already exists')
 
-	password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+	password_hash = _hash_password(password)
 	user = _db.add_user(username, password_hash)
 	if not user:
 		raise ApiInternalError('Fail to create user')
@@ -125,8 +145,12 @@ async def refresh(request):
 	except (KeyError, jwt.InvalidTokenError):
 		raise ApiUnauthorized('Invalid or expired refresh token')
 
+	user = _db.get_user(claims['username'])
+	if not user:
+		raise ApiUnauthorized('Invalid or expired refresh token')
+
 	await request.app.ctx.cache.revoke_jwt(claims['jti'], claims['exp'])
-	tokens = generate_token_pair(claims['username'], claims.get('role', 'user'))
+	tokens = generate_token_pair(user['username'], user.get('role', 'user'))
 	return json({'status': 'success', 'token': tokens['access_token'], **tokens})
 
 
@@ -134,6 +158,7 @@ async def refresh(request):
 @openapi.tag('Authentication')
 @openapi.summary('Logout')
 @openapi.description('Revoke the current access token and optional refresh token')
+@openapi.secured('BearerAuth')
 @protected
 async def logout(request, username=None, role=None):
 	if request.json is not None and not isinstance(request.json, dict):
@@ -174,6 +199,7 @@ def admin_only(handler):
 @openapi.tag('Users')
 @openapi.summary('Get users')
 @openapi.description('Get all users')
+@openapi.secured('BearerAuth')
 @admin_only
 async def get_users(request, username=None, role=None):
 	users = _db.get_users()
@@ -185,20 +211,18 @@ async def get_users(request, username=None, role=None):
 @openapi.summary('Create a user')
 @openapi.description('Create a user account as an administrator')
 @openapi.body({'application/json': admin_user_json_schema})
+@openapi.secured('BearerAuth')
 @admin_only
 @validate_with_jsonschema(jsonschema=admin_user_json_schema)
 async def create_user(request, username=None, role=None):
-	new_username = request.json['username'].strip()
-	password = request.json['password']
-	new_role = request.json.get('role', 'user')
+	body = request.json
+	new_username = body['username'].strip()
+	new_role = _parse_user_role(body)
 
-	if not new_username:
-		raise ApiBadRequest('Username must not be empty')
 	if _db.get_user(new_username):
 		raise ApiBadRequest('Username already exists')
 
-	password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-	if not _db.add_user(new_username, password_hash, new_role):
+	if not _db.add_user(new_username, _hash_password(body['password']), new_role):
 		raise ApiInternalError('Fail to create user')
 
 	return json({'status': 'success', 'username': new_username}, status=201)
@@ -209,25 +233,14 @@ async def create_user(request, username=None, role=None):
 @openapi.summary('Update a user')
 @openapi.description('Update a user account as an administrator')
 @openapi.body({'application/json': update_user_json_schema})
+@openapi.secured('BearerAuth')
 @admin_only
 @validate_with_jsonschema(jsonschema=update_user_json_schema)
 async def update_user(request, target_username, username=None, role=None):
-	body = request.json or {}
-	updated_data = {}
+	body = request.json
+	updated_data = _build_user_update(body)
 
-	if 'role' in body:
-		if body['role'] not in ('admin', 'user'):
-			raise ApiBadRequest('Role must be admin or user')
-		updated_data['role'] = body['role']
-	if 'password' in body:
-		password = body['password']
-		if not isinstance(password, str) or not 8 <= len(password) <= 72:
-			raise ApiBadRequest('Password must contain 8 to 72 characters')
-		updated_data['password_hash'] = bcrypt.hashpw(
-			password.encode('utf-8'), bcrypt.gensalt()
-		).decode('utf-8')
-
-	if not updated_data or not _db.update_user(target_username, updated_data):
+	if not _db.update_user(target_username, updated_data):
 		raise ApiNotFound('User not found')
 
 	return json({'status': 'success', 'username': target_username})
@@ -237,6 +250,7 @@ async def update_user(request, target_username, username=None, role=None):
 @openapi.tag('Users')
 @openapi.summary('Delete a user')
 @openapi.description('Delete a user account as an administrator')
+@openapi.secured('BearerAuth')
 @admin_only
 async def delete_user(request, target_username, username=None, role=None):
 	if username == target_username:

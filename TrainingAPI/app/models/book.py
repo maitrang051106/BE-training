@@ -1,4 +1,4 @@
-import time
+from app.utils.datetime_utils import normalize_timestamp, utc_now_iso
 
 
 class Book:
@@ -9,8 +9,9 @@ class Book:
         self.publisher = ''
         self.description = None
         self.owner = None
-        self.created_at = int(time.time())
-        self.last_updated_at = int(time.time())
+        now = utc_now_iso()
+        self.created_at = now
+        self.last_updated_at = now
 
     def to_dict(self):
         return {
@@ -32,8 +33,8 @@ class Book:
         description = json_dict.get('description')
         self.description = description.strip() if isinstance(description, str) else description
         self.owner = json_dict.get('owner')
-        self.created_at = json_dict.get('createdAt', int(time.time()))
-        self.last_updated_at = json_dict.get('lastUpdatedAt', int(time.time()))
+        self.created_at = normalize_timestamp(json_dict.get('createdAt'))
+        self.last_updated_at = normalize_timestamp(json_dict.get('lastUpdatedAt'))
         return self
 
 

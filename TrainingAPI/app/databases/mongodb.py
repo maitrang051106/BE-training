@@ -1,4 +1,4 @@
-from pymongo import MongoClient
+from pymongo import MongoClient, ReturnDocument
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from app.constants.mongodb_constants import MongoCollections
@@ -21,6 +21,7 @@ class MongoDB:
 
         self._books_col = self.db[MongoCollections.books]
         self._users_col = self.db[MongoCollections.users]
+        self._counters_col = self.db[MongoCollections.counters]
         self._books_col.create_index('id', unique=True)
         self._books_col.create_index([('title', 1)])
         self._books_col.create_index([('authors', 1)])
@@ -48,9 +49,23 @@ class MongoDB:
             logger.exception(ex)
             raise ApiDatabaseError() from ex
 
+    def get_next_book_id(self):
+        try:
+            counter = self._counters_col.find_one_and_update(
+                {'_id': 'books'},
+                {'$inc': {'value': 1}},
+                upsert=True,
+                return_document=ReturnDocument.AFTER,
+            )
+            return counter['value']
+        except PyMongoError as ex:
+            logger.exception(ex)
+            raise ApiDatabaseError() from ex
+
     def get_book_by_id(self, id: str):
         try:
-            doc = self._books_col.find_one({'id': id})
+            book_id = int(id) if str(id).isdigit() else id
+            doc = self._books_col.find_one({'id': book_id})
             if doc:
                 return Book().from_dict(doc)
         except PyMongoError as ex:
@@ -59,7 +74,8 @@ class MongoDB:
 
     def update_book(self, id: str, updated_data: dict):
         try:
-            result = self._books_col.update_one({'id': id}, {'$set': updated_data})
+            book_id = int(id) if str(id).isdigit() else id
+            result = self._books_col.update_one({'id': book_id}, {'$set': updated_data})
             return result.matched_count > 0
         except PyMongoError as ex:
             logger.exception(ex)
@@ -67,7 +83,8 @@ class MongoDB:
 
     def delete_book(self, id: str):
         try:
-            result = self._books_col.delete_one({'id': id})
+            book_id = int(id) if str(id).isdigit() else id
+            result = self._books_col.delete_one({'id': book_id})
             return result.deleted_count > 0
         except PyMongoError as ex:
             logger.exception(ex)
@@ -113,23 +130,12 @@ class MongoDB:
 
     def delete_user(self, username: str):
         try:
-            with self.client.start_session() as session:
-                with session.start_transaction():
+            result = self._users_col.delete_one({'username': username})
+            if result.deleted_count == 0:
+                return False
 
-                    result = self._users_col.delete_one(
-                        {'username': username},
-                        session=session
-                    )
-
-                    if result.deleted_count == 0:
-                        return False
-                
-                    self._books_col.delete_many(
-                        {'owner': username},
-                        session=session
-                    )
-                    return True
-
+            self._books_col.delete_many({'owner': username})
+            return True
         except PyMongoError as ex:
             logger.exception(ex)
             raise ApiDatabaseError() from ex

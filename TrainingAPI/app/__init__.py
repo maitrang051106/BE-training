@@ -5,13 +5,23 @@ from app.hooks.setup_ import disconnect_cache, setup_cache
 from app.misc.log import log
 from config import Config
 
+import os
+import bcrypt
+
+from app.databases.mongodb import MongoDB
+
 
 def register_extensions(sanic_app: Sanic):
-    # CORs
     sanic_app.config.CORS_ORIGINS = "*"
+    CORS(sanic_app)
 
     # OpenAPI swagger
-    # sanic_app.ext.openapi.add_security_scheme('Authorization', 'apiKey', location='header', name='Authorization')
+    sanic_app.ext.openapi.add_security_scheme(
+        'BearerAuth',
+        'http',
+        scheme='bearer',
+        bearer_format='JWT',
+    )
     sanic_app.ext.openapi.raw(Config.raw)
 
 def register_routes(sanic_app: Sanic):
@@ -44,3 +54,32 @@ def create_app(*config_cls) -> Sanic:
     register_hooks(sanic_app)
 
     return sanic_app
+
+def create_admin():
+    username = os.getenv("ADMIN_USERNAME")
+    password = os.getenv("ADMIN_PASSWORD")
+
+    if not username or not password:
+        raise RuntimeError(
+            "ADMIN_USERNAME and ADMIN_PASSWORD must be configured"
+        )
+
+    db = MongoDB()
+    existing_user = db.get_user(username)
+
+    if existing_user:
+        if existing_user.get("role") != "admin":
+            raise RuntimeError(
+                f"User '{username}' exists but is not an admin"
+            )
+        return
+
+    password_hash = bcrypt.hashpw(
+        password.encode("utf-8"),
+        bcrypt.gensalt()
+    ).decode("utf-8")
+
+    if not db.add_user(username, password_hash, "admin"):
+        raise RuntimeError("Could not create admin user")
+
+    print(f"Admin user '{username}' created")

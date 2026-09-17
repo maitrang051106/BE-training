@@ -1,5 +1,3 @@
-import time
-import uuid
 import re
 from urllib.parse import quote_plus
 
@@ -14,6 +12,7 @@ from app.decorators.auth import protected
 from app.decorators.json_validator import validate_with_jsonschema
 from app.hooks.error import ApiBadRequest, ApiForbidden, ApiNotFound, ApiInternalError
 from app.models.book import create_book_json_schema, Book
+from app.utils.datetime_utils import utc_now_iso
 
 books_bp = Blueprint('books_blueprint', url_prefix='/books')
 
@@ -70,17 +69,18 @@ async def get_all_books(request):
 @openapi.body({'application/json': create_book_json_schema})
 # -----
 # Middleware for validate JWT
+@openapi.secured('BearerAuth')
 @protected
 # -----
 # Validate data from request
 @validate_with_jsonschema(jsonschema=create_book_json_schema)
 # -----
-async def create_book(request, username=None):
+async def create_book(request, username=None, role='user'):
     body = request.json
 
-    id = str(uuid.uuid4())
+    id = _db.get_next_book_id()
     book = Book(id).from_dict(body)
-    now = int(time.time())
+    now = utc_now_iso()
     book.created_at = now
     book.last_updated_at = now
     book.owner = username
@@ -131,12 +131,13 @@ async def get_book_by_id(request, id):
 @openapi.summary('Update a book')
 @openapi.description('Update a book by id in database')
 @openapi.body({'application/json': create_book_json_schema})
+@openapi.secured('BearerAuth')
 @protected
 @validate_with_jsonschema(jsonschema=create_book_json_schema)
 async def update_book(request, id, username, role='user'):
     body = request.json
     book = _db.get_book_by_id(id)
-    now = int(time.time())
+    now = utc_now_iso()
     if not book:
         raise ApiNotFound('Book not found')
     
@@ -166,6 +167,7 @@ async def update_book(request, id, username, role='user'):
 @openapi.tag('Books')
 @openapi.summary('Delete a book')
 @openapi.description('Delete a book by id from database')
+@openapi.secured('BearerAuth')
 @protected
 async def delete_book(request, id, username, role='user'):
     book = _db.get_book_by_id(id)
