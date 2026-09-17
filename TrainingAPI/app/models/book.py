@@ -26,10 +26,11 @@ class Book:
 
     def from_dict(self, json_dict: dict):
         self.id = json_dict.get('id', self.id)
-        self.title = json_dict.get('title', '')
-        self.authors = json_dict.get('authors', [])
-        self.publisher = json_dict.get('publisher', '')
-        self.description = json_dict.get('description')
+        self.title = json_dict.get('title', '').strip()
+        self.authors = [author.strip() for author in json_dict.get('authors', [])]
+        self.publisher = json_dict.get('publisher', '').strip()
+        description = json_dict.get('description')
+        self.description = description.strip() if isinstance(description, str) else description
         self.owner = json_dict.get('owner')
         self.created_at = json_dict.get('createdAt', int(time.time()))
         self.last_updated_at = json_dict.get('lastUpdatedAt', int(time.time()))
@@ -40,13 +41,13 @@ create_book_json_schema = {
     'type': 'object',
     'additionalProperties': False,
     'properties': {
-        'title': {'type': 'string', 'minLength': 1, 'maxLength': 255},
+        'title': {'type': 'string', 'pattern': r'\S', 'maxLength': 255},
         'authors': {
             'type': 'array',
             'minItems': 1,
-            'items': {'type': 'string', 'minLength': 1, 'maxLength': 255}
+            'items': {'type': 'string', 'pattern': r'\S', 'maxLength': 255}
         },
-        'publisher': {'type': 'string', 'minLength': 1, 'maxLength': 255},
+        'publisher': {'type': 'string', 'pattern': r'\S', 'maxLength': 255},
         'description': {'type': 'string', 'maxLength': 2000},
     },
     'required': ['title', 'authors', 'publisher']

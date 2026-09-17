@@ -21,8 +21,10 @@ def register_routes(sanic_app: Sanic):
 
 def register_hooks(sanic_app: Sanic):
     from app.hooks.request_context import after_request
+    from app.hooks.error import _ApiError, api_error_handler
 
     sanic_app.register_middleware(after_request, 'response')
+    sanic_app.exception(_ApiError)(api_error_handler)
     sanic_app.register_listener(setup_cache, event="before_server_start")
     sanic_app.register_listener(disconnect_cache, event="after_server_stop")
 

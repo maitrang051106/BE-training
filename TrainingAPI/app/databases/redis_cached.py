@@ -1,9 +1,11 @@
 import json
+import time
 from typing import Optional, Any, List
 
 import redis.asyncio as redis
 
 from app.utils.logger_utils import get_logger
+from app.constants.cache_constants import CacheConstants
 from config import RedisConfig
 
 logger = get_logger('Redis Cache')
@@ -59,6 +61,10 @@ class RedisCache:
         if keys:
             await self.client.delete(*keys)
 
+    async def invalidate_books(self):
+        await self.delete_pattern('books:*')
+        await self.delete(CacheConstants.all_books)
+
     async def exists(self, key: str) -> bool:
         """Check if key exists"""
         return await self.client.exists(key) > 0
@@ -74,6 +80,14 @@ class RedisCache:
     async def ttl(self, key: str) -> int:
         """Get time to live"""
         return await self.client.ttl(key)
+
+    async def revoke_jwt(self, jti: str, expires_at: int):
+        """Blacklist a JWT until its own expiration time."""
+        ttl = max(1, expires_at - int(time.time()))
+        await self.set(f"{RedisConfig.JWT_REVOKED_PREFIX}{jti}", '1', expire=ttl)
+
+    async def is_jwt_revoked(self, jti: str) -> bool:
+        return await self.exists(f"{RedisConfig.JWT_REVOKED_PREFIX}{jti}")
 
     async def push(self, queue_name: str, value: Any):
         if isinstance(value, (dict, list)):

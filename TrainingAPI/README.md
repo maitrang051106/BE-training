@@ -191,6 +191,11 @@ Notes:
 * Generate JWT: [jwt_utils.py](app/utils/jwt_utils.py)
 * Authenticate: [auth.py](app/decorators/auth.py)
 * Authorization: Check if the user has permission to take
+* Login returns a short-lived `access_token` and a `refresh_token`.
+* Refresh: `POST /v1/auth/refresh` with `{"refresh_token": "..."}`. Refresh tokens rotate and the old `jti` is revoked in Redis until its expiry.
+* Logout: `POST /v1/auth/logout` with the access token and optional refresh token. Both token `jti` values are revoked in Redis with their remaining TTL.
+
+Set `JWT_ACCESS_EXPIRATION` and `JWT_REFRESH_EXPIRATION` (seconds) in the environment to configure token lifetimes.
 
 [//]: # (![JWT]&#40;../docs/images/jwt.png&#41;)
 

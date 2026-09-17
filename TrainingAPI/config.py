@@ -15,9 +15,8 @@ class Config:
         "auto_reload": True,
         'workers': int(os.getenv('SERVER_WORKERS', 4))
     }
-    # uWSGI를 통해 배포되어야 하므로, production level에선 run setting을 건드리지 않음
-
-    RESPONSE_TIMEOUT = 20  # seconds
+    
+    RESPONSE_TIMEOUT = 20
 
     SERVER_NAME = os.getenv('SERVER_NAME')
     raw = {}
@@ -42,6 +41,8 @@ class Config:
     API_CONTACT_EMAIL = os.getenv('API_CONTACT_EMAIL', 'example@gmail.com')
 
     EXPIRATION_JWT = int(os.getenv('EXPIRATION_JWT', 3600))
+    JWT_ACCESS_EXPIRATION = int(os.getenv('JWT_ACCESS_EXPIRATION', EXPIRATION_JWT))
+    JWT_REFRESH_EXPIRATION = int(os.getenv('JWT_REFRESH_EXPIRATION', 604800))
     SECRET_KEY = os.getenv('SECRET_KEY')
 
 
@@ -49,9 +50,11 @@ class RedisConfig:
     HOST = os.getenv('REDIS_HOST', 'redis')
     PORT = int(os.getenv('REDIS_PORT', 6379))
     DB = int(os.getenv('REDIS_DB', 0))
-    PASSWORD = os.getenv('REDIS_PASSWORD', 'pw')
+    PASSWORD = os.getenv('REDIS_PASSWORD', '')
 
-    CONNECTION_URL = f"redis://:{PASSWORD}@{HOST}:{PORT}/{DB}"
+    AUTH = f":{PASSWORD}@" if PASSWORD else ''
+    CONNECTION_URL = f"redis://{AUTH}{HOST}:{PORT}/{DB}"
+    JWT_REVOKED_PREFIX = os.getenv('JWT_REVOKED_PREFIX', 'training-api:jwt:revoked:')
 
 
 class LocalDBConfig:

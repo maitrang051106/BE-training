@@ -1,19 +1,19 @@
 from functools import wraps
 import jwt
 
-from config import Config
 from app.hooks.error import ApiUnauthorized
+from app.utils.jwt_utils import decode_jwt
 
 
-def check_token(request):
+async def check_token(request):
     token = request.token
     if not token:
         return False, None
 
     try:
-        jwt_ = jwt.decode(
-            token, Config.SECRET_KEY, algorithms=["HS256"]
-        )
+        jwt_ = decode_jwt(token)
+        if jwt_.get('typ') != 'access' or await request.app.ctx.cache.is_jwt_revoked(jwt_['jti']):
+            return False, None
         return True, jwt_
     except jwt.exceptions.InvalidTokenError:
         return False, None
@@ -23,7 +23,7 @@ def protected(wrapped):
     def decorator(f):
         @wraps(f)
         async def decorated_function(request, *args, **kwargs):
-            is_authenticated, jwt_ = check_token(request)
+            is_authenticated, jwt_ = await check_token(request)
 
             if is_authenticated:
                 kwargs['username'] = jwt_['username']

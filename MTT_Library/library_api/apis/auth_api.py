@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from django.conf import settings
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from library_api.databases.mongodb import MongoDB
@@ -71,6 +72,7 @@ def _token_pair(username, role):
     }
 
 
+@csrf_exempt
 @require_http_methods(['POST'])
 def register(request):
     payload = _body(request)
@@ -89,6 +91,7 @@ def register(request):
     return JsonResponse({'status': 'success', 'username': username}, status=201)
 
 
+@csrf_exempt
 @require_http_methods(['POST'])
 def login(request):
     payload = _body(request)
@@ -102,6 +105,7 @@ def login(request):
     return JsonResponse({'status': 'success', 'token': pair['access_token'], **pair})
 
 
+@csrf_exempt
 @require_http_methods(['POST'])
 def refresh(request):
     payload = _body(request) or {}
@@ -117,6 +121,7 @@ def refresh(request):
     return JsonResponse({'status': 'success', 'token': pair['access_token'], **pair})
 
 
+@csrf_exempt
 @require_jwt
 @require_http_methods(['POST'])
 def logout(request):
@@ -137,12 +142,14 @@ def logout(request):
     return JsonResponse({'status': 'success', 'message': 'Token revoked'})
 
 
+@csrf_exempt
 @require_role('admin')
 @require_http_methods(['GET'])
 def list_users(request):
     return JsonResponse({'status': 'success', 'users': MongoDB().list_users()})
 
 
+@csrf_exempt
 @require_role('admin')
 @require_http_methods(['POST'])
 def create_user(request):
@@ -162,6 +169,7 @@ def create_user(request):
     return JsonResponse({'status': 'success', 'username': username}, status=201)
 
 
+@csrf_exempt
 @require_role('admin')
 @require_http_methods(['PUT', 'DELETE'])
 def manage_user(request, username):

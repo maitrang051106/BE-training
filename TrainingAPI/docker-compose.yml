@@ -29,6 +29,10 @@ services:
     # Provide an explicit REDIS URL so SanicRedis can find the server when init_app is called.
     environment:
       REDIS: "redis://redis:6379/0"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_PASSWORD: ""
     networks:
       - microservice-net
     # Optional healthcheck for the app (uncomment and adjust if your app exposes /health)

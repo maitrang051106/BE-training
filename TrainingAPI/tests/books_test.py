@@ -7,7 +7,7 @@ class BooksTests(unittest.TestCase):
     """ Unit testcases for REST APIs """
 
     def test_get_all_books(self):
-        request, response = app.test_client.get('/books')
+        request, response = app.test_client.get('/v1/books')
         self.assertEqual(response.status, 200)
         data = json.loads(response.text)
         self.assertGreaterEqual(data.get('n_books'), 0)

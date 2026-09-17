@@ -1,6 +1,7 @@
 import json
 
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from library_api.decorators.auth import require_jwt
@@ -20,12 +21,14 @@ def _payload(request):
         return None
 
 
+@csrf_exempt
 @require_http_methods(['GET'])
 def list_books(request):
     books = _service().list_books()
     return JsonResponse({'status': 'success', 'n_books': len(books), 'books': books})
 
 
+@csrf_exempt
 @require_http_methods(['GET', 'PUT', 'DELETE'])
 def get_book(request, id):
     if request.method != 'GET':
@@ -36,6 +39,7 @@ def get_book(request, id):
     return JsonResponse({'status': 'success', 'book': book})
 
 
+@csrf_exempt
 @require_jwt
 @require_http_methods(['POST'])
 def create_book(request):
@@ -48,6 +52,7 @@ def create_book(request):
     return JsonResponse({'status': 'success', 'book': book}, status=201)
 
 
+@csrf_exempt
 @require_jwt
 @require_http_methods(['PUT', 'DELETE'])
 def manage_book(request, id):

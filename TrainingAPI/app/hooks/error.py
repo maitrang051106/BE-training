@@ -1,4 +1,5 @@
 from sanic.exceptions import SanicException
+from sanic.response import json
 
 
 class _ApiError(SanicException):
@@ -39,3 +40,18 @@ class ApiInternalError(_ApiError):
         status_code = 500
         message = 'Internal Error: ' + message
         super().__init__(message=message, status_code=status_code, quiet=quiet)
+
+
+class ApiDatabaseError(_ApiError):
+    def __init__(self, message='Database operation failed', quiet=None):
+        super().__init__(message=message, status_code=503, quiet=quiet)
+
+
+async def api_error_handler(request, exception):
+    return json({
+        'status': 'error',
+        'error': {
+            'code': exception.status_code,
+            'message': str(exception),
+        },
+    }, status=exception.status_code)
