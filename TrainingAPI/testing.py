@@ -1,6 +1,9 @@
 import unittest
-from tests.books_test import BooksTests
 
 
 if __name__ == '__main__':
-    unittest.main()
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite()
+    suite.addTests(loader.discover('tests', pattern='*_test.py'))
+    runner = unittest.TextTestRunner(verbosity=2)
+    raise SystemExit(not runner.run(suite).wasSuccessful())
